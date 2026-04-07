@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="ADLXCSharpBind/ADLXCSharpBind.vcxproj" Id="0eec1ea5-f7f1-443b-892c-8b5d1be786dc" />
+  <Project Path="AutoTuner/AutoTuner.csproj">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
+</Solution>
