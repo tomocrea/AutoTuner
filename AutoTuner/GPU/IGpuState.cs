@@ -15,8 +15,25 @@ namespace AutoTuner
         public int Voltage { get; set; }
         public int VramSpeed { get; set; }
         public TimingMode VramTiming { get; set; }
+
+        public GpuState get()
+        {
+            //getter
+            return new GpuState
+            {
+                FanModeValues = this.FanModeValues,
+                PowerLimit = this.PowerLimit,
+                TempLimit = this.TempLimit,
+                TdcLimit = this.TdcLimit,
+                ClockSpeed = this.ClockSpeed,
+                Voltage = this.Voltage,
+                VramSpeed = this.VramSpeed,
+                VramTiming = this.VramTiming
+            };
+        }
     }
 
+    //memento pattern
     public class TuningState
     {
         public enum TuningStatus 
@@ -29,10 +46,10 @@ namespace AutoTuner
     }
 
     //saves state before making changes to use in case of a crash
-    public interface IStates
+    public interface IGpuState
     {
         TuningState LoadState();
-        void SaveState(TuningState state);
+        Task SaveState(TuningState state);
         void ClearState();
     }
 }
