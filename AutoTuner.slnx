@@ -8,4 +8,7 @@
   <Project Path="AutoTuner/AutoTuner.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="StressTest/StressTest.csproj" Id="5a5efab5-d2d6-4c45-a394-74e854e72d25">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
 </Solution>

@@ -12,7 +12,7 @@ namespace AutoTuner.Tests
         public static void MonitoringMain()
         {
             //Initialise ADLX for AMD
-            AdlxWrapper adlxWrapper = null;
+            AdlxWrapper adlxWrapper;
             List<IGpuTuning> allGpus = new List<IGpuTuning>();
             List<IGpuMonitoring> allMonitors = new List<IGpuMonitoring>();
             try
