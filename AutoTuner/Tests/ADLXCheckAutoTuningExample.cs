@@ -1,14 +1,15 @@
-﻿using System;
+﻿using AutoTuner.GPU.AMD;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace AutoTuner.GPU.AMD
+namespace AutoTuner.Tests
 {
     internal class ADLXCheckAutoTuningExample
     {
         //This is an example to test and show how interacting with ADLX works using C# bindings
-        public void ExampleMain()
+        public static void ExampleMain()
         {
             //use using and try/finally for disposable to avoid memory leaks
             //https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-idisposable

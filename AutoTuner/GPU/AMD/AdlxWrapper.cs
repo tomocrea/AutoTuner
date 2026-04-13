@@ -388,6 +388,11 @@ namespace AutoTuner.GPU.AMD
                 tuningService.Release();
                 tuningService.Dispose();
             }
+            if (perfService != null)
+            {
+                perfService.Release();
+                perfService.Dispose();
+            }
             if (sys != null)
             {
                 sys.Dispose();
@@ -396,11 +401,6 @@ namespace AutoTuner.GPU.AMD
             {
                 ADLX_RESULT res = help.Terminate();
                 help.Dispose();
-            }
-            if(perfService != null)
-            {
-                perfService.Release();
-                perfService.Dispose();
             }
         }
     }
