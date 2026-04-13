@@ -59,10 +59,19 @@ class Program
         //https://www.geeksforgeeks.org/c-sharp/how-to-compare-strings-in-c-sharp/
         //https://www.geeksforgeeks.org/c-sharp/c-sharp-string-contains-method/
         //https://learn.microsoft.com/en-us/dotnet/standard/base-types/best-practices-strings
-        Predicate<GraphicsDeviceInfo> predicate = graphicsDeviceInfo => graphicsDeviceInfo.Name.Contains(gpuName, StringComparison.OrdinalIgnoreCase);
-        IEnumerable<GraphicsDevice> devices = GraphicsDevice.QueryDevices(predicate);
+        //Predicate<GraphicsDeviceInfo> predicate = graphicsDeviceInfo => graphicsDeviceInfo.Name.Contains(gpuName, StringComparison.OrdinalIgnoreCase);
+        IEnumerable<GraphicsDevice> devices = GraphicsDevice.EnumerateDevices();
 
-        GraphicsDevice? gpu = devices.FirstOrDefault();
+        GraphicsDevice? gpu = null;
+        foreach(GraphicsDevice device in devices)
+        {
+            if (device.Name.Contains(gpuName, StringComparison.OrdinalIgnoreCase))
+            {
+                gpu = device;
+                break;
+            }
+        }
+
         if (gpu == null)
         {
             Console.WriteLine("Couldn't find a gpu matching: " + gpuName);
