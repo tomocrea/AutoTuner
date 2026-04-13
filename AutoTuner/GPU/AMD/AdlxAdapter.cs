@@ -773,11 +773,9 @@ namespace AutoTuner.GPU.AMD
             graphicsTuning2?.Destroy();
             vramTuning1?.Destroy();
             vramTuning2?.Destroy();
-            tuningServices?.Destroy();
             metrics?.Destroy();
             metricsSupport?.Destroy();
             gpuCopy?.Destroy();
-            initCopy?.Dispose();
         }
     }
 }

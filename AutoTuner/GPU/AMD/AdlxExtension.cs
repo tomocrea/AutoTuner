@@ -13,6 +13,7 @@ namespace AutoTuner.GPU.AMD
 
         public static void Destroy(this IADLXInterface adlxObject)
         {
+            //check if object exists in c# (wrapper)
             if (adlxObject == null)
             {
                 return;
@@ -22,7 +23,11 @@ namespace AutoTuner.GPU.AMD
             //https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-idisposable#the-tryfinally-block
             try
             {
-                adlxObject.Release();
+                //check if object exists in c++ (memory)
+                if (IADLXInterface.getCPtr(adlxObject).Handle != IntPtr.Zero)
+                {
+                    adlxObject.Release();
+                }
             }
             finally
             {

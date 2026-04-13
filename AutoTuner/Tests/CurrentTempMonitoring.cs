@@ -28,6 +28,7 @@ namespace AutoTuner.Tests
             catch (Exception e)
             {
                 Console.WriteLine($"Could not load ADLX: {e.Message}");
+                return;
             }
 
             //can add other sdks like nvapi here
@@ -55,6 +56,11 @@ namespace AutoTuner.Tests
                     }
                 }
             }
+            foreach(IGpuTuning gpu in allGpus)
+            {
+                gpu.Dispose();
+            }
+            adlxWrapper.Dispose();
         }
     }
 }
