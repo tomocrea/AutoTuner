@@ -719,6 +719,32 @@ public class ADLX {
     return ret;
   }
 
+  public static SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 new_gpuMetrics1P_Ptr() {
+    global::System.IntPtr cPtr = ADLXPINVOKE.new_gpuMetrics1P_Ptr();
+    SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new SWIGTYPE_p_p_adlx__IADLXGPUMetrics1(cPtr, false);
+    return ret;
+  }
+
+  public static SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 copy_gpuMetrics1P_Ptr(IADLXGPUMetrics1 value) {
+    global::System.IntPtr cPtr = ADLXPINVOKE.copy_gpuMetrics1P_Ptr(IADLXGPUMetrics1.getCPtr(value));
+    SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new SWIGTYPE_p_p_adlx__IADLXGPUMetrics1(cPtr, false);
+    return ret;
+  }
+
+  public static void delete_gpuMetrics1P_Ptr(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 obj) {
+    ADLXPINVOKE.delete_gpuMetrics1P_Ptr(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1.getCPtr(obj));
+  }
+
+  public static void gpuMetrics1P_Ptr_assign(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 obj, IADLXGPUMetrics1 value) {
+    ADLXPINVOKE.gpuMetrics1P_Ptr_assign(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1.getCPtr(obj), IADLXGPUMetrics1.getCPtr(value));
+  }
+
+  public static IADLXGPUMetrics1 gpuMetrics1P_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1 obj) {
+    global::System.IntPtr cPtr = ADLXPINVOKE.gpuMetrics1P_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetrics1.getCPtr(obj));
+    IADLXGPUMetrics1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new IADLXGPUMetrics1(cPtr, false);
+    return ret;
+  }
+
   public static SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport new_gpuMetricsSupportP_Ptr() {
     global::System.IntPtr cPtr = ADLXPINVOKE.new_gpuMetricsSupportP_Ptr();
     SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport ret = (cPtr == global::System.IntPtr.Zero) ? null : new SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport(cPtr, false);
@@ -742,6 +768,32 @@ public class ADLX {
   public static IADLXGPUMetricsSupport gpuMetricsSupportP_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport obj) {
     global::System.IntPtr cPtr = ADLXPINVOKE.gpuMetricsSupportP_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport.getCPtr(obj));
     IADLXGPUMetricsSupport ret = (cPtr == global::System.IntPtr.Zero) ? null : new IADLXGPUMetricsSupport(cPtr, false);
+    return ret;
+  }
+
+  public static SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 new_gpuMetricsSupport1P_Ptr() {
+    global::System.IntPtr cPtr = ADLXPINVOKE.new_gpuMetricsSupport1P_Ptr();
+    SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1(cPtr, false);
+    return ret;
+  }
+
+  public static SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 copy_gpuMetricsSupport1P_Ptr(IADLXGPUMetricsSupport1 value) {
+    global::System.IntPtr cPtr = ADLXPINVOKE.copy_gpuMetricsSupport1P_Ptr(IADLXGPUMetricsSupport1.getCPtr(value));
+    SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1(cPtr, false);
+    return ret;
+  }
+
+  public static void delete_gpuMetricsSupport1P_Ptr(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 obj) {
+    ADLXPINVOKE.delete_gpuMetricsSupport1P_Ptr(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1.getCPtr(obj));
+  }
+
+  public static void gpuMetricsSupport1P_Ptr_assign(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 obj, IADLXGPUMetricsSupport1 value) {
+    ADLXPINVOKE.gpuMetricsSupport1P_Ptr_assign(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1.getCPtr(obj), IADLXGPUMetricsSupport1.getCPtr(value));
+  }
+
+  public static IADLXGPUMetricsSupport1 gpuMetricsSupport1P_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1 obj) {
+    global::System.IntPtr cPtr = ADLXPINVOKE.gpuMetricsSupport1P_Ptr_value(SWIGTYPE_p_p_adlx__IADLXGPUMetricsSupport1.getCPtr(obj));
+    IADLXGPUMetricsSupport1 ret = (cPtr == global::System.IntPtr.Zero) ? null : new IADLXGPUMetricsSupport1(cPtr, false);
     return ret;
   }
 

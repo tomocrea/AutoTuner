@@ -93,15 +93,15 @@ namespace AutoTuner.GPU
         void SetTdcLimit(int tdc);
 
         //Clock speeds and voltage offset
-        bool SupportsMaxClockSpeed();
-        int GetMaxClockSpeed();
-        RangeValues GetMaxClockSpeedRange();
-        void SetMaxClockSpeed(int mhz);
+        bool SupportsMaxClockSpeedOffset();
+        int GetMaxClockSpeedOffset();
+        RangeValues GetMaxClockSpeedOffsetRange();
+        void SetMaxClockSpeedOffset(int mhz);
 
-        bool SupportsVoltage();
-        int GetVoltage();
-        RangeValues GetVoltageRange();
-        void SetVoltage(int mv);
+        bool SupportsVoltageOffset();
+        int GetVoltageOffset();
+        RangeValues GetVoltageOffsetRange();
+        void SetVoltageOffset(int mv);
 
         //VRAM
         bool SupportsVramSpeed();
@@ -110,10 +110,14 @@ namespace AutoTuner.GPU
         void SetVramSpeed(int mhz);
         //nvapi seemingly doesnt support memory timings so only adlx
         bool SupportsVramTiming();
-        List<TimingMode> GetVramTiming();
+        TimingMode GetVramTiming();
+        List<TimingMode> GetVramTimingList();
         void SetVramTiming(TimingMode timing);
 
         //restore everything to their default settings
         void RestoreToDefault();
+
+        //get gpu name for stress test to match to
+        string GetGpuName();
     }
 }

@@ -35,13 +35,13 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ADLXCSharpBind_wrap.cxx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ADLX-1.4\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ADLX-1.4\SDK\Platform\Windows\WinAPIs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ADLXCSharpBind_wrap.cxx">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

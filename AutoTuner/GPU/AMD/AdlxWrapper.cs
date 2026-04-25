@@ -364,6 +364,45 @@ namespace AutoTuner.GPU.AMD
             return metricsSupport;
         }
 
+        //https://gpuopen.com/manuals/adlx/adlx-sdk-references/adlx-interfaces/performance-monitoring/iadlxgpumetrics1/
+        //https://gpuopen.com/manuals/adlx/adlx-sdk-references/adlx-interfaces/miscellaneous/iadlxinterface/queryinterface/
+        public IADLXGPUMetrics1 GetGPUMetrics1(IADLXGPU gpu)
+        {
+            IADLXGPUMetrics metrics = GetGPUMetrics(gpu);
+            SWIGTYPE_p_p_void swigVoids = ADLX.new_voidP_Ptr();
+            SWIGTYPE_p_wchar_t iid = IADLXGPUMetrics1.IID();
+            ADLX_RESULT res = metrics.QueryInterface(iid, swigVoids);
+            SWIGTYPE_p_void swigVoid = ADLX.voidP_Ptr_value(swigVoids);
+            ADLX.delete_voidP_Ptr(swigVoids);
+            metrics.Destroy();
+
+            if (res != ADLX_RESULT.ADLX_OK || swigVoid == null)
+            {
+                throw new Exception($"Failed to retrieve GPU metrics support: {res}");
+            }
+
+            IntPtr intPointer = SWIGTYPE_p_void.getCPtr(swigVoid).Handle;
+            return new IADLXGPUMetrics1(intPointer, false);
+        }
+        public IADLXGPUMetricsSupport1 GetGPUMetricsSupport1(IADLXGPU gpu)
+        {
+            IADLXGPUMetricsSupport metricsSupport = GetGPUMetricsSupport(gpu);
+            SWIGTYPE_p_p_void swigVoids = ADLX.new_voidP_Ptr();
+            SWIGTYPE_p_wchar_t iid = IADLXGPUMetricsSupport1.IID();
+            ADLX_RESULT res = metricsSupport.QueryInterface(iid, swigVoids);
+            SWIGTYPE_p_void swigVoid = ADLX.voidP_Ptr_value(swigVoids);
+            ADLX.delete_voidP_Ptr(swigVoids);
+            metricsSupport.Destroy();
+
+            if (res != ADLX_RESULT.ADLX_OK || swigVoid == null)
+            {
+                throw new Exception($"Failed to retrieve GPU metrics support: {res}");
+            }
+
+            IntPtr intPointer = SWIGTYPE_p_void.getCPtr(swigVoid).Handle;
+            return new IADLXGPUMetricsSupport1(intPointer, false);
+        }
+
         //convert SWIGTYPE char (char** in c++) to string to use in methods
         //e.g. virtual ADLX_RESULT ADLX_STD_CALL Name(const char** name) const = 0;
         //https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/conversions#108-method-group-conversions

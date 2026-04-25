@@ -91,6 +91,7 @@ class Program
         float[] b;
 
         //https://developer.nvidia.com/blog/how-to-write-high-performance-matrix-multiply-in-nvidia-cuda-tile/
+        //4096 seems to be a good sweet spot
         int m = 4096;
         int ka = 4096;
         int kb = 4096;
@@ -108,6 +109,38 @@ class Program
             a = MatrixMultiply.ReadMatrixFromFile(MatrixMultiply.inputPathA);
             b = MatrixMultiply.ReadMatrixFromFile(MatrixMultiply.inputPathB);
         }
-        MatrixMultiply.RunMatrixMultiply(mode, gpu, a, b, m, ka, kb, n, iterations);
+        //https://learn.microsoft.com/en-us/windows-hardware/drivers/display/timeout-detection-and-recovery
+        //https://learn.microsoft.com/en-us/windows/uwp/gaming/handling-device-lost-scenarios
+        //https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-error
+        //https://stackoverflow.com/questions/5928976/what-is-the-proper-way-to-display-the-full-innerexception
+        try
+        {
+            MatrixMultiply.RunMatrixMultiply(mode, gpu, a, b, m, ka, kb, n, iterations);
+        }
+        catch (Exception ex)
+        {
+            uint DXGI_ERROR_DRIVER_INTERNAL_ERROR = 0x887A0020;
+            uint DXGI_ERROR_DEVICE_HUNG = 0x887A0006;
+            uint DXGI_ERROR_DEVICE_REMOVED = 0x887A0005;
+            uint DXGI_ERROR_DEVICE_RESET = 0x887A0007;
+            uint E_FAIL = 0x80004005;
+            uint errorCode = (uint)ex.HResult;
+
+            if (errorCode == DXGI_ERROR_DRIVER_INTERNAL_ERROR || errorCode == DXGI_ERROR_DEVICE_HUNG || errorCode == DXGI_ERROR_DEVICE_REMOVED || errorCode == DXGI_ERROR_DEVICE_RESET)
+            {
+                Console.WriteLine("Driver error: " + errorCode);
+                Environment.Exit(6);
+            }
+            else if(errorCode == E_FAIL)
+            {
+                Console.WriteLine("Driver fail");
+                Environment.Exit(8);
+            }
+            else
+            {
+                Console.WriteLine("Unknown error: " + errorCode);
+                Environment.Exit(7);
+            }
+        }
     }
 }

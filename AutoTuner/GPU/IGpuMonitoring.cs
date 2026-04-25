@@ -23,5 +23,7 @@ namespace AutoTuner.GPU
         double GetCurrentUsage();
         bool SupportsTotalBoardPower();
         double GetTotalBoardPower();
+        bool SupportsCurrentVramTemperature();
+        double GetCurrentVramTemperature();
     }
 }

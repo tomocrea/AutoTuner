@@ -42,6 +42,22 @@ namespace AutoTuner.Tests
                 IGpuMonitoring myMonitor = allMonitors[1];
                 Console.WriteLine("Monitoring started. Press any key to stop...");
 
+                Console.WriteLine("Gpu Name: " + myGpu.GetGpuName());
+                Console.WriteLine("Fan: " + myGpu.SupportsFanMode(FanMode.Auto));
+                Console.WriteLine("Power: " + myGpu.GetPowerLimit());
+                Console.WriteLine("Power Range: " + myGpu.GetPowerLimitRange().Min + " to " + myGpu.GetPowerLimitRange().Max + " step " + myGpu.GetPowerLimitRange().Step);
+                //Console.WriteLine("Temp" + myGpu.GetTempLimit());
+                Console.WriteLine("Tdc: " + myGpu.GetTdcLimit());
+                Console.WriteLine("Tdc Range: " + myGpu.GetTdcLimitRange().Min + " to " + myGpu.GetTdcLimitRange().Max + " step " + myGpu.GetTdcLimitRange().Step);
+                Console.WriteLine("Clock: " + myGpu.GetMaxClockSpeedOffset());
+                Console.WriteLine("Clock Range: " + myGpu.GetMaxClockSpeedOffsetRange().Min + " to " + myGpu.GetMaxClockSpeedOffsetRange().Max + " step " + myGpu.GetMaxClockSpeedOffsetRange().Step);
+                Console.WriteLine("Voltage: " + myGpu.GetVoltageOffset());
+                Console.WriteLine("Voltage Range: " + myGpu.GetVoltageOffsetRange().Min + " to " + myGpu.GetVoltageOffsetRange().Max + " step " + myGpu.GetVoltageOffsetRange().Step);
+                Console.WriteLine("Vram Speed: " + myGpu.GetVramSpeed());
+                Console.WriteLine("Vram Speed Range: " + myGpu.GetVramSpeedRange().Min + " to " + myGpu.GetVramSpeedRange().Max + " step " + myGpu.GetVramSpeedRange().Step);
+                Console.WriteLine("Vram Timing: " + myGpu.GetVramTiming());
+                Console.WriteLine("Vram Timing List: " + string.Join(", ", myGpu.GetVramTimingList()));
+
                 while (!Console.KeyAvailable)
                 {
                     Stopwatch sw = Stopwatch.StartNew();
@@ -51,7 +67,7 @@ namespace AutoTuner.Tests
                     if (myMonitor.SupportsCurrentTemperature())
                     {
                         var metrics = myMonitor.GetCurrentTemperature();
-                        Console.WriteLine($"[LIVE] Temp: {metrics}°C");
+                        Console.WriteLine($"Temp: {metrics} degrees celcius");
                         Thread.Sleep(100);
                     }
                 }

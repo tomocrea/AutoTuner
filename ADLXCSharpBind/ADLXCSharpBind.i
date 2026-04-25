@@ -19,6 +19,8 @@
 #include "./ADLX-1.4/SDK/Include/IGPUManualVRAMTuning.h"
 #include "./ADLX-1.4/SDK/Include/IGPUPresetTuning.h"
 #include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring.h"
+#include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring1.h"
+#include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring2.h"
 
 #include "./ADLX-1.4/SDK/ADLXHelper/Windows/Cpp/ADLXHelper.h"
 
@@ -159,6 +161,8 @@ typedef WCHAR TCHAR;
 %include "./ADLX-1.4/SDK/Include/IGPUPresetTuning.h"
 %include "./ADLX-1.4/SDK/ADLXHelper/Windows/Cpp/ADLXHelper.h"
 %include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring.h"
+%include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring1.h"
+%include "./ADLX-1.4/SDK/Include/IPerformanceMonitoring2.h"
 
 //pointer functions
 %include cpointer.i
@@ -209,5 +213,7 @@ using namespace adlx;
 %ppointer_functions(IADLXMemoryTimingDescription*, memoryTimingDescriptionP_Ptr);
 %ppointer_functions(IADLXMemoryTimingDescriptionList*, memoryTimingDescriptionListP_Ptr);
 %ppointer_functions(IADLXGPUMetrics*, gpuMetricsP_Ptr);
+%ppointer_functions(IADLXGPUMetrics1*, gpuMetrics1P_Ptr);
 %ppointer_functions(IADLXGPUMetricsSupport*, gpuMetricsSupportP_Ptr);
+%ppointer_functions(IADLXGPUMetricsSupport1*, gpuMetricsSupport1P_Ptr);
 %ppointer_functions(IADLXPerformanceMonitoringServices*, performanceMonitoringServicesP_Ptr);

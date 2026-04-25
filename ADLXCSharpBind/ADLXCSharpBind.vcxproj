@@ -159,9 +159,12 @@
   <ItemGroup>
     <CustomBuild Include="ADLXCSharpBind.i">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(SolutionDir)SWIG\ADLX" mkdir "$(SolutionDir)SWIG\ADLX"
-swig.exe -c++ -csharp -dllimport ADLXCSharpBind -outdir "$(SolutionDir)SWIG\ADLX" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">if not exist "$(SolutionDir)AutoTuner\SWIG\ADLX" mkdir "$(SolutionDir)AutoTuner\SWIG\ADLX" 
+swig.exe -c++ -csharp -dllimport ADLXCSharpBind -outdir "$(SolutionDir)AutoTuner\SWIG\ADLX" "%(FullPath)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)_wrap.cxx</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">if not exist "$(SolutionDir)AutoTuner\SWIG\ADLX" mkdir "$(SolutionDir)AutoTuner\SWIG\ADLX" 
+swig.exe -c++ -csharp -dllimport ADLXCSharpBind -outdir "$(SolutionDir)AutoTuner\SWIG\ADLX" "%(FullPath)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)_wrap.cxx</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

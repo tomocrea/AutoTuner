@@ -16,11 +16,16 @@ namespace AutoTuner.GPU
             try
             {
                 string json = System.IO.File.ReadAllText(filePath);
-                return JsonSerializer.Deserialize<TuningState>(json) ?? new TuningState { Status = TuningState.TuningStatus.Idle };
+                return JsonSerializer.Deserialize<TuningState>(json) ?? new TuningState { Status = TuningState.TuningStatus.Base };
             }
             catch (Exception)
             {
-                return new TuningState { Status = TuningState.TuningStatus.Idle };
+                return new TuningState
+                {
+                    Status = TuningState.TuningStatus.Base,
+                    Stage = TuningState.TuningStage.Coarse,
+                    Variable = TuningState.TuningVariable.PowerLimit
+                };
             }
         }
         public async Task SaveState(TuningState state)
@@ -31,9 +36,9 @@ namespace AutoTuner.GPU
             createStream.Flush(true);
             //System.IO.File.WriteAllText(filePath, json);
         }
-        public void ClearState()
+        public async Task ClearState()
         {
-            System.IO.File.Delete(filePath);
+            await Task.Run(() => System.IO.File.Delete(filePath));
         }
     }
 }

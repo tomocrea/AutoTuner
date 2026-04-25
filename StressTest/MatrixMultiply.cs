@@ -59,15 +59,16 @@ namespace StressTest
 
             float[] writeFlat = new float[m * n];
 
-            using ReadWriteBuffer<float> bufferA = GraphicsDevice.GetDefault().AllocateReadWriteBuffer(flatA);
-            using ReadWriteBuffer<float> bufferB = GraphicsDevice.GetDefault().AllocateReadWriteBuffer(flatB);
-            using ReadWriteBuffer<float> writeBuffer = GraphicsDevice.GetDefault().AllocateReadWriteBuffer(writeFlat);
+            using ReadWriteBuffer<float> bufferA = gpu.AllocateReadWriteBuffer(flatA);
+            using ReadWriteBuffer<float> bufferB = gpu.AllocateReadWriteBuffer(flatB);
+            using ReadWriteBuffer<float> writeBuffer = gpu.AllocateReadWriteBuffer(writeFlat);
+            using ReadWriteBuffer<int> compareResult = gpu.AllocateReadWriteBuffer(new int[1] { 0 });
 
             //run specific mode
             switch (mode)
             {
                 case(TestMode.sustained):
-                    RunSustained(gpu, bufferA, bufferB, writeBuffer, m, ka, kb, n, expectedOutput, iterations);
+                    RunSustained(gpu, bufferA, bufferB, writeBuffer, m, ka, kb, n, expectedOutput, iterations, compareResult);
                     break;
 
                 case(TestMode.expected):
@@ -75,7 +76,7 @@ namespace StressTest
                     break;
 
                 case(TestMode.transient):
-                    RunTransient(gpu, bufferA, bufferB, writeBuffer, m, ka, kb, n, expectedOutput, iterations);
+                    RunTransient(gpu, bufferA, bufferB, writeBuffer, m, ka, kb, n, expectedOutput, iterations, compareResult);
                     break;
 
                 default:
@@ -85,33 +86,58 @@ namespace StressTest
         }
 
         //keeps running matrix multiplication until program stopped
-        static void RunSustained(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n, float[] expectedOutput, int iterations)
+        static void RunSustained(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n, float[] expectedOutput, int iterations, ReadWriteBuffer<int> compareResult)
         {
+            using ReadWriteBuffer<float> expectedBuffer = gpu.AllocateReadWriteBuffer(expectedOutput);
             Stopwatch sw = new Stopwatch();
-            for(int i = 0; i < iterations; i++)
+            Console.WriteLine("Multiplying matrices sustained");
+            long averageTime = 0;
+            for (int i = 0; i < iterations; i++)
             {
                 sw.Restart();
                 gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
-                float[] writeFlat = writeBuffer.ToArray();
+
+                gpu.For(m, n, new MatrixCompareAccelerated(writeBuffer, expectedBuffer, n, compareResult));
+
+                //float[] writeFlat = writeBuffer.ToArray();
+                int[] compareFlat = compareResult.ToArray();
                 sw.Stop();
+
+                compareResult.CopyFrom(new int[] { 0 });
+
                 //verify result
-                if (!MatrixEqual(writeFlat, expectedOutput))
+                //if (!MatrixEqual(writeFlat, expectedOutput))
+                //{
+                //    Console.WriteLine("GPU result does not match expected output, possible instability");
+                //    Environment.Exit(4);
+                //}
+                if (compareFlat[0] == 0)
+                {
+                    Console.WriteLine("GPU did not calculate matrix comparison, possible instability");
+                    Environment.Exit(5);
+                }
+                else if (compareFlat[0] == 2)
                 {
                     Console.WriteLine("GPU result does not match expected output, possible instability");
                     Environment.Exit(4);
                 }
-                Console.WriteLine("Time to multiply: " + sw.ElapsedMilliseconds);
+                //Console.WriteLine("Time to multiply matrices: " + sw.ElapsedMilliseconds + "ms");
+                averageTime += sw.ElapsedMilliseconds;
             }
+            averageTime = averageTime / iterations;
+            Console.WriteLine("Average time to multiply matrices: " + averageTime + "ms");
         }
 
         //spikes usage at random intervals
-        static void RunTransient(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n, float[] expectedOutput, int totalIterations)
+        static void RunTransient(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n, float[] expectedOutput, int totalIterations, ReadWriteBuffer<int> compareResult)
         {
+            using ReadWriteBuffer<float> expectedBuffer = gpu.AllocateReadWriteBuffer(expectedOutput);
             Stopwatch sw = new Stopwatch();
             Random rnd = new Random();
-            for(int i = 0; i < totalIterations; i++)
+            Console.WriteLine("Multiplying matrices transient");
+            long averageTime = 0;
+            for (int i = 0; i < totalIterations; i++)
             {
-
                 double transientIteration = rnd.NextDouble();
                 int waitTime = rnd.Next(500, 2000);
 
@@ -119,23 +145,36 @@ namespace StressTest
                 if(transientIteration <= 0.9)
                 {
                     gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
-                    sw.Stop();
+                    gpu.For(m, n, new MatrixCompareAccelerated(writeBuffer, expectedBuffer, n, compareResult));
                 }
                 else
                 {
                     sw.Stop();
                     Thread.Sleep(waitTime);
                 }
-                float[] writeFlat = writeBuffer.ToArray();
+                int[] compareFlat = compareResult.ToArray();
+                sw.Stop();
+
+                //clear buffer
+                compareResult.CopyFrom(new int[] { 0 });
 
                 //verify result
-                if (!MatrixEqual(writeFlat, expectedOutput))
+                if (compareFlat[0] == 0 && transientIteration <= 0.9)
                 {
+                    Console.WriteLine("GPU did not calculate matrix comparison, possible instability");
+                    Environment.Exit(5);
+                }
+                else if (compareFlat[0] == 2) 
+                { 
                     Console.WriteLine("GPU result does not match expected output, possible instability");
                     Environment.Exit(4);
                 }
-                Console.WriteLine("Time stressed for: " + sw.ElapsedMilliseconds);
+                //Console.WriteLine("Time to multiply matrices: " + sw.ElapsedMilliseconds + "ms");
+                averageTime += sw.ElapsedMilliseconds;
             }
+            //calculate average time by mean
+            averageTime = averageTime / totalIterations;
+            Console.WriteLine("Average time to multiply matrices: " + averageTime + "ms");
         }
 
         static void RunExpected(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n)
@@ -297,6 +336,33 @@ namespace StressTest
             }
 
             writeBuffer[(x*n) + y] = sum;
+        }
+    }
+
+    //compare output faster using gpu to avoid dips and increase utilisation
+    //similar to gpu-burn implementation
+    //https://github.com/wilicc/gpu-burn/blob/master/compare.cu
+    [ThreadGroupSize(DefaultThreadGroupSizes.XY)]
+    [GeneratedComputeShaderDescriptor]
+    public readonly partial struct MatrixCompareAccelerated(ReadWriteBuffer<float> a, ReadWriteBuffer<float> b, int n, ReadWriteBuffer<int> result) : IComputeShader
+    {
+        readonly float epsilon = 0.001f;
+        public void Execute()
+        {
+            int x = ThreadIds.X;
+            int y = ThreadIds.Y;
+            int i = (x * n) + y;
+            //first stage change to prove comparison has been attempted
+            if(i == 0)
+            {
+                Hlsl.InterlockedMax(ref result[0], 1);
+            }
+            //if result outside of margin of error, result = 1 which means maths error
+            if(Hlsl.Abs(a[i] - b[i]) > epsilon)
+            {
+                //https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/interlockedor
+                Hlsl.InterlockedMax(ref result[0], 2);
+            }
         }
     }
 }

@@ -24,7 +24,9 @@ namespace AutoTuner.GPU.AMD
         private IADLXGPUTuningServices? tuningServices;
 
         private IADLXGPUMetrics? metrics;
+        private IADLXGPUMetrics1? metrics1;
         private IADLXGPUMetricsSupport? metricsSupport;
+        private IADLXGPUMetricsSupport1? metricsSupport1;
 
         private IADLXGPU gpuCopy;
         private AdlxWrapper initCopy;
@@ -46,7 +48,9 @@ namespace AutoTuner.GPU.AMD
             tuningServices = init.tuningService;
 
             metrics = init.GetGPUMetrics(gpu);
+            metrics1 = init.GetGPUMetrics1(gpu);
             metricsSupport = init.GetGPUMetricsSupport(gpu);
+            metricsSupport1 = init.GetGPUMetricsSupport1(gpu);
 
             gpuCopy = gpu;
             initCopy = init;
@@ -207,7 +211,7 @@ namespace AutoTuner.GPU.AMD
             }
         }
 
-        public bool SupportsMaxClockSpeed()
+        public bool SupportsMaxClockSpeedOffset()
         {
             if (graphicsTuning2 != null)
             {
@@ -232,7 +236,7 @@ namespace AutoTuner.GPU.AMD
             }
             return false;
         }
-        public int GetMaxClockSpeed()
+        public int GetMaxClockSpeedOffset()
         {
             if(graphicsTuning2 != null)
             {
@@ -263,7 +267,7 @@ namespace AutoTuner.GPU.AMD
             }
             throw new Exception("Graphics tuning null");
         }
-        public RangeValues GetMaxClockSpeedRange()
+        public RangeValues GetMaxClockSpeedOffsetRange()
         {
             if (graphicsTuning2 != null)
             {
@@ -280,7 +284,7 @@ namespace AutoTuner.GPU.AMD
             }
             throw new Exception("Graphics tuning null");
         }
-        public void SetMaxClockSpeed(int mhz)
+        public void SetMaxClockSpeedOffset(int mhz)
         {
             if(graphicsTuning2 != null)
             {
@@ -307,7 +311,7 @@ namespace AutoTuner.GPU.AMD
             }
         }
 
-        public bool SupportsVoltage()
+        public bool SupportsVoltageOffset()
         {
             if (graphicsTuning2 != null)
             {
@@ -332,7 +336,7 @@ namespace AutoTuner.GPU.AMD
             }
             return false;
         }
-        public int GetVoltage()
+        public int GetVoltageOffset()
         {
             if (graphicsTuning2 != null)
             {
@@ -360,7 +364,7 @@ namespace AutoTuner.GPU.AMD
             }
             throw new Exception("Graphics tuning null");
         }
-        public RangeValues GetVoltageRange()
+        public RangeValues GetVoltageOffsetRange()
         {
             if (graphicsTuning2 != null)
             {
@@ -377,7 +381,7 @@ namespace AutoTuner.GPU.AMD
             }
             throw new Exception("Graphics tuning null");
         }
-        public void SetVoltage(int mv)
+        public void SetVoltageOffset(int mv)
         {
             if (graphicsTuning2 != null)
             {
@@ -513,8 +517,50 @@ namespace AutoTuner.GPU.AMD
             }
             return false;
         }
+        public TimingMode GetVramTiming()
+        {
+            if (vramTuning2 != null)
+            {
+                SWIGTYPE_p_ADLX_MEMORYTIMING_DESCRIPTION desc = ADLX.new_memoryTimingDescriptionP();
+                vramTuning2.GetMemoryTimingDescription(desc);
+                ADLX_MEMORYTIMING_DESCRIPTION descEnum = ADLX.memoryTimingDescriptionP_value(desc);
+                int descInt = (int)descEnum;
+                TimingMode getTiming = descInt switch
+                {
+                    0 => TimingMode.Default,
+                    1 => TimingMode.Fast,
+                    2 => TimingMode.Fast2,
+                    3 => TimingMode.Auto,
+                    4 => TimingMode.Level1,
+                    5 => TimingMode.Level2,
+                    _ => throw new NotImplementedException()
+                };
+                ADLX.delete_memoryTimingDescriptionP(desc);
+                return getTiming;
+            }
+            else if (vramTuning1 != null)
+            {
+                SWIGTYPE_p_ADLX_MEMORYTIMING_DESCRIPTION desc = ADLX.new_memoryTimingDescriptionP();
+                vramTuning1.GetMemoryTimingDescription(desc);
+                ADLX_MEMORYTIMING_DESCRIPTION descEnum = ADLX.memoryTimingDescriptionP_value(desc);
+                int descInt = (int)descEnum;
+                TimingMode getTiming = descInt switch
+                {
+                    0 => TimingMode.Default,
+                    1 => TimingMode.Fast,
+                    2 => TimingMode.Fast2,
+                    3 => TimingMode.Auto,
+                    4 => TimingMode.Level1,
+                    5 => TimingMode.Level2,
+                    _ => throw new NotImplementedException()
+                };
+                ADLX.delete_memoryTimingDescriptionP(desc);
+                return getTiming;
+            }
+            throw new Exception("Vram tuning null");
+        }
         //loops through description list and returns vram timing descriptions
-        public List<TimingMode> GetVramTiming()
+        public List<TimingMode> GetVramTimingList()
         {
             if (vramTuning2 != null)
             {
@@ -753,6 +799,25 @@ namespace AutoTuner.GPU.AMD
             throw new Exception("GPU metrics null");
         }
 
+        public bool SupportsCurrentVramTemperature()
+        {
+            if (metricsSupport1 != null)
+            {
+                metricsSupport1.IsSupportedGPUMemoryTemperature(out bool supported);
+                return supported;
+            }
+            return false;
+        }
+        public double GetCurrentVramTemperature()
+        {
+            if (metrics1 != null)
+            {
+                metrics1.GPUMemoryTemperature(out double temp);
+                return temp;
+            }
+            throw new Exception("GPU metrics null");
+        }
+
         public void RestoreToDefault()
         {
             if (tuningServices != null && gpuCopy != null)
@@ -761,6 +826,16 @@ namespace AutoTuner.GPU.AMD
                 return;
             }
             throw new Exception("Tuning services or gpu null");
+        }
+
+        public string GetGpuName()
+        {
+            if (gpuCopy != null)
+            {
+                gpuCopy.Name(out string name);
+                return name;
+            }
+            throw new Exception("GPU null");
         }
 
         public void Dispose()
