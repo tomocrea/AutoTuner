@@ -10,8 +10,12 @@ namespace AutoTuner
     class Program
     {
         //https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/main-command-line
+        //https://stackoverflow.com/questions/277771/how-to-run-a-winform-from-console-application
+        [STAThread]
         static async Task Main(string[] args)
         {
+            Application.EnableVisualStyles();
+            
             int gpuIndex = 1;
 
             //https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.enableraisingevents?view=net-10.0
@@ -42,13 +46,19 @@ namespace AutoTuner
             {
                 IGpuTuning myGpu = allGpus[gpuIndex];
                 IGpuMonitoring myMonitor = allMonitors[gpuIndex];
+                IGpuState myState = new JsonGpuState();
 
                 //Process stressTest = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode expected -iterations 50");
                 //await Task.Delay(5000);
-                //Process stressTest2 = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode sustained -iterations 50");
+                //Process stressTest2 = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode sustained -iterations 500");
 
-                TuningGpu tuner = new TuningGpu(myGpu, new JsonGpuState(), TuningGpu.TuningTarget.MaxPerformance);
-                await tuner.TuningLoop(myGpu, myMonitor);
+                //TuningGpu tuner = new TuningGpu(myGpu, myState, TuningGpu.TuningTarget.overclock);
+                //await tuner.TuningLoop(myGpu, myMonitor);
+
+                using (UserInterface ui = new UserInterface(myGpu, myMonitor, myState))
+                {
+                    Application.Run(ui);
+                }
             }
             else
             {

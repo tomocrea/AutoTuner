@@ -11,6 +11,7 @@ namespace AutoTuner.GPU
     internal class JsonGpuState : IGpuState
     {
         private string filePath = "gpu_state.json";
+        JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
         public TuningState LoadState()
         {
             try
@@ -31,7 +32,7 @@ namespace AutoTuner.GPU
         public async Task SaveState(TuningState state)
         {
             await using FileStream createStream = File.Create(filePath);
-            await JsonSerializer.SerializeAsync(createStream, state);
+            await JsonSerializer.SerializeAsync(createStream, state, options);
             //https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0#system-io-filestream-flush(system-boolean)
             createStream.Flush(true);
             //System.IO.File.WriteAllText(filePath, json);

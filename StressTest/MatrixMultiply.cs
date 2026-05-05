@@ -96,6 +96,7 @@ namespace StressTest
             {
                 sw.Restart();
                 gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
+                //gpu.For(m, n, new MatrixMultiplyTiled(bufferA, bufferB, m, ka, n, writeBuffer, 1.00f, 0.00f));
 
                 gpu.For(m, n, new MatrixCompareAccelerated(writeBuffer, expectedBuffer, n, compareResult));
 
@@ -105,12 +106,6 @@ namespace StressTest
 
                 compareResult.CopyFrom(new int[] { 0 });
 
-                //verify result
-                //if (!MatrixEqual(writeFlat, expectedOutput))
-                //{
-                //    Console.WriteLine("GPU result does not match expected output, possible instability");
-                //    Environment.Exit(4);
-                //}
                 if (compareFlat[0] == 0)
                 {
                     Console.WriteLine("GPU did not calculate matrix comparison, possible instability");
@@ -125,7 +120,8 @@ namespace StressTest
                 averageTime += sw.ElapsedMilliseconds;
             }
             averageTime = averageTime / iterations;
-            Console.WriteLine("Average time to multiply matrices: " + averageTime + "ms");
+            //taken by RunStressTest's RedirectStandardOutput
+            Console.WriteLine("AverageTime:" + averageTime);
         }
 
         //spikes usage at random intervals
@@ -145,6 +141,7 @@ namespace StressTest
                 if(transientIteration <= 0.9)
                 {
                     gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
+                    //gpu.For(m, n, new MatrixMultiplyTiled(bufferA, bufferB, m, ka, n, writeBuffer, 1.00f, 0.00f));
                     gpu.For(m, n, new MatrixCompareAccelerated(writeBuffer, expectedBuffer, n, compareResult));
                 }
                 else
@@ -164,8 +161,8 @@ namespace StressTest
                     Console.WriteLine("GPU did not calculate matrix comparison, possible instability");
                     Environment.Exit(5);
                 }
-                else if (compareFlat[0] == 2) 
-                { 
+                else if (compareFlat[0] == 2)
+                {
                     Console.WriteLine("GPU result does not match expected output, possible instability");
                     Environment.Exit(4);
                 }
@@ -174,7 +171,8 @@ namespace StressTest
             }
             //calculate average time by mean
             averageTime = averageTime / totalIterations;
-            Console.WriteLine("Average time to multiply matrices: " + averageTime + "ms");
+            //taken by RunStressTest's RedirectStandardOutput
+            Console.WriteLine("AverageTime:" + averageTime);
         }
 
         static void RunExpected(GraphicsDevice gpu, ReadWriteBuffer<float> bufferA, ReadWriteBuffer<float> bufferB, ReadWriteBuffer<float> writeBuffer, int m, int ka, int kb, int n)
@@ -336,6 +334,74 @@ namespace StressTest
             }
 
             writeBuffer[(x*n) + y] = sum;
+        }
+    }
+
+    //similar to MatrixMultiplyAccelerated but tiled
+    //https://eunomia.dev/others/cuda-tutorial/03-gpu-programming-methods/
+    //https://developer.nvidia.com/blog/how-to-write-high-performance-matrix-multiply-in-nvidia-cuda-tile/
+    //https://github.com/NVIDIA/cuda-samples/blob/master/Samples/0_Introduction/matrixMul/matrixMul.cu
+    [ThreadGroupSize(16, 16, 1)]
+    [GeneratedComputeShaderDescriptor]
+    public readonly partial struct MatrixMultiplyTiled(ReadWriteBuffer<float> a, ReadWriteBuffer<float> b, int m, int n, int k, ReadWriteBuffer<float> c, float alpha, float beta) : IComputeShader
+    {
+        //https://github.com/llvm-beanz/linalg-examples/blob/main/gemm.hlsl
+        const int TILE_SIZE = 16;
+
+        [GroupShared] static readonly float[] tileA = new float[TILE_SIZE * TILE_SIZE];
+        [GroupShared] static readonly float[] tileB = new float[TILE_SIZE * TILE_SIZE];
+
+        public void Execute()
+        {
+            int row = ThreadIds.Y;
+            int col = ThreadIds.X;
+
+            float sum = 0.0f;
+
+            int numTiles = ((k + TILE_SIZE - 1) / TILE_SIZE);
+
+            for (int tileId = 0; tileId < numTiles; tileId++)
+            {
+                int aRow = row;
+                int aCol = tileId * TILE_SIZE + GroupIds.X;
+
+                if (aRow < m && aCol < k)
+                {
+                    tileA[GroupIds.Y * TILE_SIZE + GroupIds.X] = a[aRow * k + aCol];
+                }
+                else
+                {
+                    tileA[GroupIds.Y * TILE_SIZE + GroupIds.X] = 0.0f;
+                }
+
+                int bRow = tileId * TILE_SIZE + GroupIds.Y;
+                int bCol = col;
+
+                if (bRow < k && bCol < n)
+                {
+                    tileB[GroupIds.Y * TILE_SIZE + GroupIds.X] = b[bRow * n + bCol];
+                }
+                else
+                {
+                    tileB[GroupIds.Y * TILE_SIZE + GroupIds.X] = 0.0f;
+                }
+
+                Hlsl.GroupMemoryBarrierWithGroupSync();
+
+                for (int i = 0; i < TILE_SIZE; i++)
+                {
+                    sum += tileA[GroupIds.Y * TILE_SIZE + i] * tileB[i * TILE_SIZE + GroupIds.X];
+                }
+
+                Hlsl.GroupMemoryBarrierWithGroupSync();
+            }
+
+            if (row < m && col < n)
+            {
+                int cIndex = row * n + col;
+                float existingC = c[cIndex];
+                c[cIndex] = alpha * sum + beta * existingC;
+            }
         }
     }
 

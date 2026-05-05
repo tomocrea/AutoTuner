@@ -76,7 +76,7 @@ namespace AutoTuner.Tests
         }
 
         //get gpu name for stress test to match to
-        public string GetGpuName() => "Fake GPU"; //change code in RunStressTest to run test with fake gpu
+        public string GetGpuName() => "Fake GPU Adapter"; //change code in RunStressTest to run test with fake gpu
 
         public void Dispose()
         {
@@ -138,12 +138,12 @@ namespace AutoTuner.Tests
         private double currHotspotTemp = 70;
         private double currTemp = 50;
         private double currVramTemp = 50;
-        private double heatSaturation = 86; //increase to simulate overheating
+        private double heatSaturation = 96; //increase to simulate overheating
 
         public void UpdateMetrics() 
         {
             //https://stackoverflow.com/questions/262280/how-can-i-know-if-a-process-is-running
-            if (Process.GetProcessesByName("StressTest").Length > 0)
+            if (TuningGpu.FakeTestRunning|| Process.GetProcessesByName("StressTest").Length > 0)
             {
                 if(currHotspotTemp < heatSaturation) currHotspotTemp += 0.1;
                 if(currTemp < heatSaturation) currTemp += 0.2;

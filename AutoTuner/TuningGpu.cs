@@ -24,7 +24,7 @@ namespace AutoTuner
         //parameters for tuning loop
         public enum TuningTarget
         {
-            MaxPerformance/*overclock*/, MaxEfficiency/*undervolt*/
+            overclock, undervolt
         }
         //todo: find best values
         public int maxTemp = 85;
@@ -33,13 +33,22 @@ namespace AutoTuner
         public int coarseStep = 25;
         public int fineStep = 5;
         public int saturateIterations = 700; //700 = about 5 minutes
-        public int coarseTestIterations = 100;
-        public int fineTestIterations = 50;
-        public int checkTestIterations = 50;
+        public int coarseTestIterations = 50; //50
+        public int fineTestIterations = 50; //50
+        public int checkTestIterations = 100;
         public TuningTarget tuningTarget;
         private double baselineTemp;
         private double baselineHotspotTemp;
         private double baselineVramTemp;
+        private int baselineClockSpeed;
+
+        //bools for reason for cancelling
+        private bool isOverheat = false;
+        private bool isLowClock = false;
+        private bool isCooling = false;
+
+        //for fake gpu test
+        public static bool FakeTestRunning = false;
 
         public TuningGpu(IGpuTuning gpu, IGpuState state, TuningTarget target)
         {
@@ -49,15 +58,22 @@ namespace AutoTuner
             tuningTarget = target;
         }
 
-        private async Task BackgroundTempMonitoring(IGpuMonitoring monitor, CancellationToken token)
+        private async Task BackgroundMonitoring(IGpuMonitoring monitor, CancellationToken token, TuningState state)
         {
             Console.WriteLine("Monitoring started on background thread");
             baselineTemp = monitor.SupportsCurrentTemperature() ? monitor.GetCurrentTemperature() : 0;
             baselineHotspotTemp = monitor.SupportsHotspotTemp() ? monitor.GetHotspotTemp() : 0;
             baselineVramTemp = monitor.SupportsCurrentVramTemperature() ? monitor.GetCurrentVramTemperature() : 0;
+            baselineClockSpeed = 0;
 
             while (!token.IsCancellationRequested)
             {
+                //avoid access violation race condition with cooling check in RunStressTest
+                if (isCooling)
+                {
+                    await Task.Delay(1000, token);
+                    continue;
+                }
                 try
                 {
                     Stopwatch sw = Stopwatch.StartNew();
@@ -68,6 +84,7 @@ namespace AutoTuner
                         if (!cancelOverheat.IsCancellationRequested)
                         {
                             Console.WriteLine("Temperature too high: " + monitor.GetCurrentTemperature());
+                            isOverheat = true;
                             try { cancelOverheat.Cancel(); }
                             catch { Console.WriteLine("Couldn't cancel"); }
                         }
@@ -77,6 +94,7 @@ namespace AutoTuner
                         if (!cancelOverheat.IsCancellationRequested)
                         {
                             Console.WriteLine("Temperature hotspot too high: " + monitor.GetHotspotTemp());
+                            isOverheat = true;
                             try { cancelOverheat.Cancel(); }
                             catch { Console.WriteLine("Couldn't cancel"); }
                         }
@@ -86,8 +104,32 @@ namespace AutoTuner
                         if (!cancelOverheat.IsCancellationRequested)
                         {
                             Console.WriteLine("Vram temperature too high: " + monitor.GetCurrentVramTemperature());
+                            isOverheat = true;
                             try { cancelOverheat.Cancel(); }
                             catch { Console.WriteLine("Couldn't cancel"); }
+                        }
+                    }
+
+                    //first get boosted clock with no tuning
+                    if(state.Status == TuningState.TuningStatus.Testing && (state.AttemptedState.ClockSpeed ?? 0) == 0 && monitor.GetCurrentUsage() > 95)
+                    {
+                        if(monitor.GetCurrentClockSpeed() > baselineClockSpeed)
+                        {
+                            baselineClockSpeed = monitor.GetCurrentClockSpeed();
+                        }
+                    }
+                    //monitor for clock stretching when undervolting
+                    if(baselineClockSpeed > 0 && state.Status == TuningState.TuningStatus.Testing && monitor.GetCurrentUsage() > 95)
+                    {
+                        if(monitor.GetCurrentClockSpeed() < ((baselineClockSpeed + (state.AttemptedState.ClockSpeed ?? 0)) - 150))
+                        {
+                            if(!cancelOverheat.IsCancellationRequested)
+                            {
+                                Console.WriteLine("Clock stretching detected");
+                                isLowClock = true;
+                                try { cancelOverheat.Cancel(); }
+                                catch { Console.WriteLine("Couldn't cancel"); }
+                            }
                         }
                     }
                 }
@@ -115,12 +157,12 @@ namespace AutoTuner
         //async for save state
         public async Task TuningLoop(IGpuTuning gpu, IGpuMonitoring monitor)
         {
-            monitoringTask = Task.Run(() => BackgroundTempMonitoring(monitor, cancelMonitor.Token));
             TuningState state = gpuState.LoadState();
+            monitoringTask = Task.Run(() => BackgroundMonitoring(monitor, cancelMonitor.Token, state));
 
             //variables to be tuned, e.g. clock speed, voltage & vram
             TuningState.TuningVariable[] variables;
-            if(tuningTarget == TuningTarget.MaxPerformance)
+            if(tuningTarget == TuningTarget.overclock)
             {
                 //if max performance, focus on clock speed and vram speed
                 variables = new[]
@@ -129,14 +171,14 @@ namespace AutoTuner
                     TuningState.TuningVariable.VramSpeed
                 };
             }
-            else if (tuningTarget == TuningTarget.MaxEfficiency)
+            else if (tuningTarget == TuningTarget.undervolt)
             {
-                //if max efficiency, focus on undervolting and power limit
+                //if max efficiency, focus on undervolting and lowest power limit
                 variables = new[]
                 {
                     TuningState.TuningVariable.Voltage,
                     TuningState.TuningVariable.PowerLimit,
-                    TuningState.TuningVariable.ClockSpeed
+                    TuningState.TuningVariable.VramSpeed
                 };
             }
             else
@@ -146,13 +188,13 @@ namespace AutoTuner
 
             if (state.Status == TuningState.TuningStatus.Base)
             {
-                Console.WriteLine("Starting tuning process.");
+                Console.WriteLine("Starting tuning process at: " + DateTime.Now);
                 gpu.RestoreToDefault();
 
                 //apply starting values based on tuning target/preset
                 switch (tuningTarget)
                 {
-                    case TuningTarget.MaxPerformance:
+                    case TuningTarget.overclock:
                         state.AttemptedState = new GpuState()
                         {
                             //use ternary to avoid exceptions
@@ -167,7 +209,7 @@ namespace AutoTuner
                         };
                         break;
 
-                    case TuningTarget.MaxEfficiency:
+                    case TuningTarget.undervolt:
                         state.AttemptedState = new GpuState()
                         {
                             FanModeValues = gpu.SupportsFanMode(FanMode.Auto) ? new AutoValue() : null,
@@ -177,7 +219,7 @@ namespace AutoTuner
                             ClockSpeed = gpu.SupportsMaxClockSpeedOffset() ? gpu.GetMaxClockSpeedOffset() : null,
                             Voltage = gpu.SupportsVoltageOffset() ? gpu.GetVoltageOffset() : null,
                             VramSpeed = gpu.SupportsVramSpeed() ? gpu.GetVramSpeed() : null,
-                            VramTiming = gpu.SupportsVramTiming() ? gpu.GetVramTiming() : null
+                            VramTiming = gpu.SupportsVramTiming() ? TimingMode.Fast : null
                         };
                         break;
                 }
@@ -230,7 +272,7 @@ namespace AutoTuner
                     }
                     else
                     {
-                        Console.WriteLine("Fully tuned");
+                        Console.WriteLine("Fully tuned at: " + DateTime.Now);
                         state.AttemptedState = new GpuState(state.LastStableState);
                         ApplyState(gpu, state);
                         await gpuState.SaveState(state);
@@ -278,11 +320,17 @@ namespace AutoTuner
                 state.Status = TuningState.TuningStatus.Testing;
                 if (state.Stage == TuningState.TuningStage.Coarse)
                 {
-                    stable = await RunStressTest(gpu, state, stable, TestMode.sustained, coarseTestIterations, monitor); 
+                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, coarseTestIterations/2, monitor);
+                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, coarseTestIterations/2, monitor);
+                    if(stableSustained && stableTransient) { stable = true; }
+                    else { stable = false; }
                 }
                 else if (state.Stage == TuningState.TuningStage.Fine)
                 {
-                    stable = await RunStressTest(gpu, state, stable, TestMode.sustained, fineTestIterations, monitor);
+                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, fineTestIterations/2, monitor);
+                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, fineTestIterations/2, monitor);
+                    if (stableSustained && stableTransient) { stable = true; }
+                    else { stable = false; }
                 }
                 else if (state.Stage == TuningState.TuningStage.Check)
                 {
@@ -359,12 +407,12 @@ namespace AutoTuner
                     if (state.LastStableState.PowerLimit is int) currPower = state.LastStableState.PowerLimit.Value;
                     else return false;
 
-                    if (tuningTarget == TuningTarget.MaxPerformance)
+                    if (tuningTarget == TuningTarget.overclock)
                     {
                         if(currPower == gpu.GetPowerLimitRange().Max) return false; //if already at max, cant increase further
                         currPower = gpu.GetPowerLimitRange().Max;
                     }
-                    else if (tuningTarget == TuningTarget.MaxEfficiency)
+                    else if (tuningTarget == TuningTarget.undervolt)
                     {
                         currPower -= step; //todo find best tradeoff for efficiency, need to measure performance impact
                     }
@@ -385,12 +433,12 @@ namespace AutoTuner
                     if(state.LastStableState.TempLimit is int) currTemp = state.LastStableState.TempLimit.Value;
                     else return false;
 
-                    if(tuningTarget == TuningTarget.MaxPerformance)
+                    if(tuningTarget == TuningTarget.overclock)
                     {
                         if(currTemp == gpu.GetTempLimitRange().Max) return false; //if already at max, cant increase further
                         currTemp = gpu.GetTempLimitRange().Max;
                     }
-                    else if (tuningTarget == TuningTarget.MaxEfficiency)
+                    else if (tuningTarget == TuningTarget.undervolt)
                     {
                         currTemp -= step; //todo find best tradeoff for efficiency, need to measure performance impact
                     }
@@ -411,12 +459,12 @@ namespace AutoTuner
                     if(state.LastStableState.TdcLimit is int) currTdc = state.LastStableState.TdcLimit.Value;
                     else return false;
 
-                    if(tuningTarget == TuningTarget.MaxPerformance)
+                    if(tuningTarget == TuningTarget.overclock)
                     {
                         if(currTdc == gpu.GetTdcLimitRange().Max) return false; //if already at max, cant increase further
                         currTdc = gpu.GetTdcLimitRange().Max;
                     }
-                    else if (tuningTarget == TuningTarget.MaxEfficiency)
+                    else if (tuningTarget == TuningTarget.undervolt)
                     {
                         currTdc -= step; //todo find best tradeoff for efficiency, need to measure performance impact
                     }
@@ -437,11 +485,11 @@ namespace AutoTuner
                     if (state.LastStableState.ClockSpeed is int) currClock = state.LastStableState.ClockSpeed.Value;
                     else return false;
 
-                    if (tuningTarget == TuningTarget.MaxPerformance)
+                    if (tuningTarget == TuningTarget.overclock)
                     {
                         currClock += step;
                     }
-                    else if (tuningTarget == TuningTarget.MaxEfficiency)
+                    else if (tuningTarget == TuningTarget.undervolt)
                     {
                         return false;
                     }
@@ -462,11 +510,11 @@ namespace AutoTuner
                     if(state.LastStableState.Voltage is int) currVoltage = state.LastStableState.Voltage.Value;
                     else return false;
 
-                    if(tuningTarget == TuningTarget.MaxPerformance)
+                    if(tuningTarget == TuningTarget.overclock)
                     {
                         return false;
                     }
-                    else if (tuningTarget == TuningTarget.MaxEfficiency)
+                    else if (tuningTarget == TuningTarget.undervolt)
                     {
                         currVoltage -= step;
                     }
@@ -539,7 +587,13 @@ namespace AutoTuner
                 //start stress test
                 //https://stackoverflow.com/questions/25966983/how-to-get-the-exitcode-of-a-running-process
                 string name = gpu.GetGpuName();
-                Process stressTest = Process.Start("StressTest.exe", $"-name \"{name}\" -mode {mode} -iterations {iterations}"); //todo find best iterations
+                Process stressTest = new Process();
+                stressTest.StartInfo.FileName = "StressTest.exe";
+                stressTest.StartInfo.Arguments = $"-name \"{name}\" -mode {mode} -iterations {iterations}";
+                //https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.redirectstandardoutput?view=net-10.0
+                stressTest.StartInfo.UseShellExecute = false;
+                //stressTest.StartInfo.RedirectStandardOutput = true;
+                stressTest.Start();
 
                 try
                 {
@@ -547,7 +601,6 @@ namespace AutoTuner
                 }
                 catch
                 {
-                    Console.WriteLine("Stress test cancelled due to overheating");
                     //kill stress test and reset token
                     try { stressTest.Kill(); }
                     catch { Console.WriteLine("Couldn't kill stress test"); }
@@ -557,20 +610,36 @@ namespace AutoTuner
                     state.AttemptedState = new GpuState(state.LastStableState);
                     ApplyState(gpu, state);
 
+                    isCooling = true;
+                    baselineClockSpeed = 0;
                     //wait to cool down to just above baseline
-                    while (monitor.GetHotspotTemp() >= baselineHotspotTemp + 5 || monitor.GetCurrentTemperature() >= baselineTemp + 5 || monitor.GetCurrentVramTemperature() >= baselineVramTemp + 5)
+                    if (isOverheat)
                     {
-                        Console.WriteLine($"Current Temp: {monitor.GetCurrentTemperature()}, Hotspot Temp: {monitor.GetHotspotTemp()}, Vram Temp: {monitor.GetCurrentVramTemperature()}");
+                        Console.WriteLine("Stress test cancelled due to overheating");
+                        while (monitor.GetHotspotTemp() >= baselineHotspotTemp + 5 || monitor.GetCurrentTemperature() >= baselineTemp + 5 || monitor.GetCurrentVramTemperature() >= baselineVramTemp + 5)
+                        {
+                            Console.WriteLine($"Current Temp: {monitor.GetCurrentTemperature()}, Hotspot Temp: {monitor.GetHotspotTemp()}, Vram Temp: {monitor.GetCurrentVramTemperature()}");
+                            await Task.Delay(1000);
+                        }
+                    }
+                    else if (isLowClock)
+                    {
+                        Console.WriteLine("Stress test cancelled due to dropping clock speeds");
                         await Task.Delay(1000);
                     }
 
+                    isOverheat = false;
+                    isLowClock = false;
+                    isCooling = false;
+
                     cancelOverheat.Dispose();
                     cancelOverheat = new CancellationTokenSource();
-                    Console.WriteLine("GPU cooled down, resuming tuning process");
+                    Console.WriteLine("Resuming tuning process");
                     return false;
                 }
-                int code = stressTest.ExitCode; //0 if fine, 4 if multiplication returned wrong result so unstable
-
+                int code = stressTest.ExitCode; //0 if fine, 4 if multiplication returned wrong result so unstable, 5 if tdr
+                //string output = await stressTest.StandardOutput.ReadToEndAsync();
+                
                 switch (code)
                 {
                     case 0:
@@ -582,11 +651,13 @@ namespace AutoTuner
                         break;
                     case 4:
                     case 5:
-                        if (code == 4)
+                    case 6:
+                    case 8:
+                        if (code == 4 || code == 5)
                         {
                             Console.WriteLine("Test failed due to instability, reverting to last stable state");
                         }
-                        else if (code == 5)
+                        else if (code == 6 || code == 8)
                         {
                             Console.WriteLine("Test failed due to driver timeout/crash, reverting to last stable state");
                         }
@@ -601,19 +672,20 @@ namespace AutoTuner
                         stable = false;
                         break;
                 }
+                baselineClockSpeed = 0; //reset avg clock speed
                 return stable;
             }
             else
             {
                 //Fake GPU test
+                FakeTestRunning = true;
                 try
                 {
                     await Task.Delay(100 * iterations, cancelOverheat.Token);
                 }
                 catch (OperationCanceledException)
                 {
-                    cancelOverheat.Dispose();
-                    cancelOverheat = new CancellationTokenSource();
+                    FakeTestRunning = false;
 
                     state.Status = TuningState.TuningStatus.Fail;
                     state.AttemptedState = new GpuState(state.LastStableState);
@@ -623,6 +695,9 @@ namespace AutoTuner
                     {
                         await Task.Delay(1000);
                     }
+                    Console.WriteLine("GPU cooled down, resuming tuning process");
+                    cancelOverheat.Dispose();
+                    cancelOverheat = new CancellationTokenSource();
                     return false;
                 }
                 if (state.Variable == TuningState.TuningVariable.ClockSpeed && state.AttemptedState.ClockSpeed > 321)
@@ -631,8 +706,10 @@ namespace AutoTuner
                     state.Status = TuningState.TuningStatus.Fail;
                     state.AttemptedState = new GpuState(state.LastStableState);
                     ApplyState(gpu, state);
+                    FakeTestRunning = false;
                     return false;
                 }
+                FakeTestRunning = false;
                 return true;
             }
         }

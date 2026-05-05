@@ -14,7 +14,7 @@ namespace AutoTuner.Tests
             IGpuTuning gpu = new FakeGpuAdapter();
             IGpuMonitoring monitor = new FakeGpuMonitoring();
             IGpuState state = new FakeGpuState();
-            TuningGpu tuner = new TuningGpu(gpu, state, TuningGpu.TuningTarget.MaxPerformance);
+            TuningGpu tuner = new TuningGpu(gpu, state, TuningGpu.TuningTarget.overclock);
             await tuner.TuningLoop(gpu, monitor);
             TuningState tState = state.LoadState();
             Console.WriteLine($"Tuning Status: {tState.Status}, Tuning Stage: {tState.Stage}, Tuning Variable: {tState.Variable}");
