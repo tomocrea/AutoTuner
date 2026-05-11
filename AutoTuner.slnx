@@ -1,14 +1,12 @@
 <Solution>
   <Configurations>
-    <Platform Name="Any CPU" />
     <Platform Name="x64" />
-    <Platform Name="x86" />
   </Configurations>
   <Project Path="ADLXCSharpBind/ADLXCSharpBind.vcxproj" Id="0eec1ea5-f7f1-443b-892c-8b5d1be786dc" />
-  <Project Path="AutoTuner/AutoTuner.csproj">
+  <Project Path="AutoTuner/AutoTuner.csproj" DefaultStartup="true">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="StressTest/StressTest.csproj" Id="5a5efab5-d2d6-4c45-a394-74e854e72d25">
-    <Platform Solution="Debug|x64" Project="x64" />
+    <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>
