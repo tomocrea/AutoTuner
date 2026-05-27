@@ -14,8 +14,12 @@ namespace AutoTuner.Tests
             IGpuTuning gpu = new FakeGpuAdapter();
             IGpuMonitoring monitor = new FakeGpuMonitoring();
             IGpuState state = new FakeGpuState();
+            IProgress<UIUpdate> progress = new Progress<UIUpdate>();
+            CancellationTokenSource stopTuning = new CancellationTokenSource();
+
             TuningGpu tuner = new TuningGpu(gpu, state, TuningGpu.TuningTarget.overclock);
-            await tuner.TuningLoop(gpu, monitor);
+            await tuner.TuningLoop(gpu, monitor, progress, stopTuning.Token);
+
             TuningState tState = state.LoadState();
             Console.WriteLine($"Tuning Status: {tState.Status}, Tuning Stage: {tState.Stage}, Tuning Variable: {tState.Variable}");
             Console.WriteLine(JsonSerializer.Serialize(tState.LastStableState, new JsonSerializerOptions { WriteIndented = true }));

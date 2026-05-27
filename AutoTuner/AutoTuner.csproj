@@ -9,6 +9,7 @@
     <BaseOutputPath>..\</BaseOutputPath>
     <Platforms>x64</Platforms>
 	<UseWindowsForms>true</UseWindowsForms>
+	<ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
   </PropertyGroup>
 
   <Target Name="IncludeGeneratedSwigFiles" BeforeTargets="CoreCompile">
@@ -16,5 +17,9 @@
 	  <Compile Include="SWIG\ADLX\*.cs" Exclude="@(Compile)" />
 	</ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <PackageReference Include="ScottPlot.WinForms" Version="5.1.58" />
+  </ItemGroup>
 
 </Project>

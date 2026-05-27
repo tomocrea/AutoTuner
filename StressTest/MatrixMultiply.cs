@@ -95,8 +95,8 @@ namespace StressTest
             for (int i = 0; i < iterations; i++)
             {
                 sw.Restart();
-                gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
-                //gpu.For(m, n, new MatrixMultiplyTiled(bufferA, bufferB, m, ka, n, writeBuffer, 1.00f, 0.00f));
+                //gpu.For(m, n, new MatrixMultiplyAccelerated(bufferA, bufferB, m, ka, kb, n, writeBuffer));
+                gpu.For(m, n, new MatrixMultiplyTiled(bufferA, bufferB, m, ka, n, writeBuffer, 1.00f, 0.00f));
 
                 gpu.For(m, n, new MatrixCompareAccelerated(writeBuffer, expectedBuffer, n, compareResult));
 

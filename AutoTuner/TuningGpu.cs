@@ -10,6 +10,17 @@ using System.Text;
 
 namespace AutoTuner
 {
+    public class UIUpdate
+    {
+        public double CurrentTemp { get; set; }
+        public double HotspotTemp { get; set; }
+        public double VramTemp { get; set; }
+        public int ClockSpeed { get; set; }
+        public int GPUUsage { get; set; }
+        public int PowerUsage { get; set; }
+        public string Stage { get; set; }
+        public string Message { get; set; }
+    }
     internal class TuningGpu
     {
         private CancellationTokenSource cancelMonitor;
@@ -58,7 +69,7 @@ namespace AutoTuner
             tuningTarget = target;
         }
 
-        private async Task BackgroundMonitoring(IGpuMonitoring monitor, CancellationToken token, TuningState state)
+        private async Task BackgroundMonitoring(IGpuMonitoring monitor, CancellationToken token, TuningState state, IProgress<UIUpdate> progress)
         {
             Console.WriteLine("Monitoring started on background thread");
             baselineTemp = monitor.SupportsCurrentTemperature() ? monitor.GetCurrentTemperature() : 0;
@@ -79,6 +90,18 @@ namespace AutoTuner
                     Stopwatch sw = Stopwatch.StartNew();
                     monitor.UpdateMetrics();
                     sw.Stop();
+
+                    //send metrics to ui
+                    progress.Report(new UIUpdate()
+                    {
+                        CurrentTemp = monitor.SupportsCurrentTemperature() ? monitor.GetCurrentTemperature() : 0,
+                        HotspotTemp = monitor.SupportsHotspotTemp() ? monitor.GetHotspotTemp() : 0,
+                        VramTemp = monitor.SupportsCurrentVramTemperature() ? monitor.GetCurrentVramTemperature() : 0,
+                        ClockSpeed = monitor.SupportsCurrentClockSpeed() ? monitor.GetCurrentClockSpeed() : 0,
+                        GPUUsage = monitor.SupportsCurrentUsage() ? (int)monitor.GetCurrentUsage() : 0,
+                        PowerUsage = monitor.SupportsTotalBoardPower() ? (int)monitor.GetTotalBoardPower() : 0,
+                    });
+
                     if (monitor.SupportsCurrentTemperature() && monitor.GetCurrentTemperature() >= maxTemp)
                     {
                         if (!cancelOverheat.IsCancellationRequested)
@@ -155,10 +178,10 @@ namespace AutoTuner
         }
 
         //async for save state
-        public async Task TuningLoop(IGpuTuning gpu, IGpuMonitoring monitor)
+        public async Task TuningLoop(IGpuTuning gpu, IGpuMonitoring monitor, IProgress<UIUpdate> progress, CancellationToken stopTuning)
         {
             TuningState state = gpuState.LoadState();
-            monitoringTask = Task.Run(() => BackgroundMonitoring(monitor, cancelMonitor.Token, state));
+            monitoringTask = Task.Run(() => BackgroundMonitoring(monitor, cancelMonitor.Token, state, progress));
 
             //variables to be tuned, e.g. clock speed, voltage & vram
             TuningState.TuningVariable[] variables;
@@ -189,6 +212,7 @@ namespace AutoTuner
             if (state.Status == TuningState.TuningStatus.Base)
             {
                 Console.WriteLine("Starting tuning process at: " + DateTime.Now);
+                progress.Report(new UIUpdate { Message = "Starting tuning process at: " + DateTime.Now });
                 gpu.RestoreToDefault();
 
                 //apply starting values based on tuning target/preset
@@ -229,6 +253,7 @@ namespace AutoTuner
                 state.LastStableState = new GpuState(state.AttemptedState);
                 await gpuState.SaveState(state);
                 ApplyState(gpu, state);
+                progress.Report(new UIUpdate { Stage = "Applied initial state, starting with " + state.Variable });
             }
 
             if (state.Status == TuningState.TuningStatus.Testing)
@@ -242,21 +267,22 @@ namespace AutoTuner
 
             //calculate expected values on default tuning
             Console.WriteLine("Calculating expected matrix result");
-            await RunStressTest(gpu, state, true, TestMode.expected, 1, monitor);
+            progress.Report(new UIUpdate { Message = "Calculating expected matrix result" });
+            await RunStressTest(gpu, state, true, TestMode.expected, 1, monitor, stopTuning);
 
             //first saturate with heat
             Console.WriteLine("Running 5 minute stress test to saturate GPU with heat");
-            await RunStressTest(gpu, state, true, TestMode.sustained, saturateIterations, monitor);
-
+            progress.Report(new UIUpdate { Message = "Running 5 minute stress test to saturate GPU with heat" });
+            await RunStressTest(gpu, state, true, TestMode.sustained, saturateIterations, monitor, stopTuning);
             //todo: if initial matrix multiplication has been done
-            //https://stackoverflow.com/questions/6719630/how-to-escape-a-while-loop-in-c-sharp
             bool stable = true;
-            while (!cancelMonitor.IsCancellationRequested)
+            while (!cancelMonitor.IsCancellationRequested && !stopTuning.IsCancellationRequested)
             {
                 //once variable tested and stable after all stages, move to next
                 if (state.Stage == TuningState.TuningStage.Done)
                 {
                     Console.WriteLine($"{state.Variable} done, advancing to next variable");
+                    progress.Report(new UIUpdate { Message = $"{state.Variable} done, advancing to next variable" });
                     //https://stackoverflow.com/questions/972307/how-to-loop-through-all-enum-values-in-c
                     //https://learn.microsoft.com/en-gb/dotnet/fundamentals/code-analysis/quality-rules/ca2263
 
@@ -298,6 +324,7 @@ namespace AutoTuner
                 if (!adjusted)
                 {
                     Console.WriteLine("Cannot adjust further, limit reached for " + state.Variable);
+                    progress.Report(new UIUpdate { Message = "Cannot adjust further, limit reached for " + state.Variable });
 
                     state.AttemptedState = new GpuState(state.LastStableState);
                     state.Stage = TuningState.TuningStage.Done;
@@ -310,6 +337,8 @@ namespace AutoTuner
                 //apply state to gpu
                 ApplyState(gpu, state);
                 Console.WriteLine($"Applied {state.Variable} with step {step} at stage {state.Stage}");
+                //update ui progress stage
+                progress.Report(new UIUpdate { Stage = $"Applied {state.Variable} with step {step} at stage {state.Stage}" });
                 //must await to ensure state saved
                 await gpuState.SaveState(state);
 
@@ -320,21 +349,21 @@ namespace AutoTuner
                 state.Status = TuningState.TuningStatus.Testing;
                 if (state.Stage == TuningState.TuningStage.Coarse)
                 {
-                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, coarseTestIterations/2, monitor);
-                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, coarseTestIterations/2, monitor);
+                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, coarseTestIterations/2, monitor, stopTuning);
+                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, coarseTestIterations/2, monitor, stopTuning);
                     if(stableSustained && stableTransient) { stable = true; }
                     else { stable = false; }
                 }
                 else if (state.Stage == TuningState.TuningStage.Fine)
                 {
-                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, fineTestIterations/2, monitor);
-                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, fineTestIterations/2, monitor);
+                    bool stableSustained = await RunStressTest(gpu, state, stable, TestMode.sustained, fineTestIterations/2, monitor, stopTuning);
+                    bool stableTransient = await RunStressTest(gpu, state, stable, TestMode.transient, fineTestIterations/2, monitor, stopTuning);
                     if (stableSustained && stableTransient) { stable = true; }
                     else { stable = false; }
                 }
                 else if (state.Stage == TuningState.TuningStage.Check)
                 {
-                    stable = await RunStressTest(gpu, state, stable, TestMode.transient, checkTestIterations, monitor);
+                    stable = await RunStressTest(gpu, state, stable, TestMode.transient, checkTestIterations, monitor, stopTuning);
                 }
 
                 //after test
@@ -579,7 +608,7 @@ namespace AutoTuner
             if(gpu.SupportsVramTiming() && state.AttemptedState.VramTiming is TimingMode) gpu.SetVramTiming(state.AttemptedState.VramTiming.Value);
         }
 
-        private async Task<bool> RunStressTest(IGpuTuning gpu, TuningState state, bool stable, TestMode mode, int iterations, IGpuMonitoring monitor)
+        private async Task<bool> RunStressTest(IGpuTuning gpu, TuningState state, bool stable, TestMode mode, int iterations, IGpuMonitoring monitor, CancellationToken stopTuning)
         {
             //run regular stress test if real gpu, if using fake gpu to test dont need to run real stress test
             if (gpu.GetGpuName() != "Fake GPU Adapter")
@@ -597,7 +626,10 @@ namespace AutoTuner
 
                 try
                 {
-                    await stressTest.WaitForExitAsync(cancelOverheat.Token);
+                    using (CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancelOverheat.Token, stopTuning))
+                    {
+                        await stressTest.WaitForExitAsync(linkedCts.Token);
+                    }
                 }
                 catch
                 {
@@ -609,6 +641,12 @@ namespace AutoTuner
                     state.Status = TuningState.TuningStatus.Fail;
                     state.AttemptedState = new GpuState(state.LastStableState);
                     ApplyState(gpu, state);
+
+                    //exit loop if tuning stopped from button
+                    if (stopTuning.IsCancellationRequested)
+                    {
+                        throw;
+                    }
 
                     isCooling = true;
                     baselineClockSpeed = 0;

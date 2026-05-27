@@ -48,10 +48,11 @@ namespace AutoTuner
                 IGpuMonitoring myMonitor = allMonitors[gpuIndex];
                 IGpuState myState = new JsonGpuState();
 
-                //Process stressTest = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode expected -iterations 50");
-                //await Task.Delay(5000);
-                //Process stressTest2 = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode sustained -iterations 500");
-
+                Process stressTest = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode expected -iterations 50");
+                await stressTest.WaitForExitAsync();
+                Process stressTest2 = Process.Start("StressTest.exe", $"-name \"{myGpu.GetGpuName()}\" -mode sustained -iterations 500");
+                await stressTest2.WaitForExitAsync();
+                Console.WriteLine("Benchmark complete");
                 //TuningGpu tuner = new TuningGpu(myGpu, myState, TuningGpu.TuningTarget.overclock);
                 //await tuner.TuningLoop(myGpu, myMonitor);
 
