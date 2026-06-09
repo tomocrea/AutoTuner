@@ -1,4 +1,5 @@
 # AutoTuner: An Automated GPU Overclocking/Undervolting Utility
+![Demo](https://github.com/user-attachments/assets/a9e5923e-2231-465c-b429-7e0d07272a4a)
 AutoTuner is a C# application that automates the risky and time consuming task of tuning GPUs. It uses a custom coarse-to-fine algorithm and stress test to safely find optimal tuning values.  
 Testing resulted in a 10.3% performance increase and a 13.2% reduction in power consumption.
 
